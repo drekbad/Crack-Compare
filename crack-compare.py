@@ -88,9 +88,9 @@ def display_results(count_dict, output_file=None, debug=False):
     separator_line = "-" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
-    colon_position = total_users_line.index(":") + 1
-    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
-    shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
+    colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
+    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
+    shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes:'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
     
     if debug:
         print("Parsed Hashes:", hashes)
