@@ -39,8 +39,17 @@ def highlight_admin_users(username):
     patterns = [r".*\.adm.*", r".*-adm.*", r".*\.admin.*", r".*-admin.*", r"adm\..*", r"admin\..*"]
     for pattern in patterns:
         if re.match(pattern, username, re.IGNORECASE):
-            return f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
+            return f"{Fore.RED}{username}{Style.RESET_ALL}"
     return username
+
+# Function to extract the username from a given NTDS line
+def extract_username(line):
+    if "\\" in line:
+        return line.split("\\")[1].split(":")[0]
+    elif ":" in line:
+        return line.split(":")[0]
+    else:
+        return line
 
 # Function to display results and optionally write to a file
 def display_results(count_dict, output_file=None, debug=False):
@@ -62,7 +71,7 @@ def display_results(count_dict, output_file=None, debug=False):
             
             detailed_results.append(f"{highlighted_hash}:")
             for user in users:
-                user_name = user.split("\\")[1].split(":")[0] if "\\" in user and ":" in user else user
+                user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name)
                 if highlighted_user != user_name:  # Check if it was highlighted
                     possible_admin_count += 1
@@ -73,8 +82,9 @@ def display_results(count_dict, output_file=None, debug=False):
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{total_users}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
-    # Admin account statistics
-    admin_stats_line = f"    Possible Admin Accounts: {Fore.RED}{Style.BRIGHT}{possible_admin_count}{Style.RESET_ALL}"
+    # Align the admin stats with the colon in the total_users_line
+    colon_position = total_users_line.index(":")
+    admin_stats_line = f"{' ' * colon_position}Possible Admin Accounts: {Fore.RED}{possible_admin_count}{Style.RESET_ALL}"
     
     if debug:
         print("Parsed Hashes:", hashes)
@@ -84,7 +94,7 @@ def display_results(count_dict, output_file=None, debug=False):
         for hash_val, users in sorted_hashes:
             for user in users:
                 print(f"Raw user data: {user}")
-                user_name = user.split("\\")[1].split(":")[0] if "\\" in user and ":" in user else user
+                user_name = extract_username(user)
                 print(f"Parsed user name: {user_name}")
 
     # Regular output
