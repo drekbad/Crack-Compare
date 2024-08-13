@@ -203,7 +203,7 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
 # Main function with argument parsing
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze NTDS dump and cracked hashes, highlighting possible admin accounts and domain admin accounts.",
+        description="Analyze NTDS dump and cracked hashes, highlighting reuse or defaults, possible admin accounts, and cracked domain admin accounts.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
