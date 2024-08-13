@@ -122,8 +122,8 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
-    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.YELLOW if domain_admin_count > 0 else Fore.RED}{Style.BRIGHT if domain_admin_count > 0 else ''}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
-    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
+    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.YELLOW if domain_admin_count > 0 else Style.RESET_ALL}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
+    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED if possible_admin_count > 0 else Style.RESET_ALL}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
     shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes:'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
     
     if debug:
