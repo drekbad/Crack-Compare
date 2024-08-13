@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+import argparse
 
 # Function to parse and categorize the input file
 def parse_hash_file(file_content):
@@ -49,22 +50,47 @@ def count_matches(hashes, ntds_content):
     
     return count_dict
 
-# Function to display results without highlights
-def display_results(count_dict):
+# Function to display results and optionally write to a file
+def display_results(count_dict, output_file=None):
     sorted_hashes = sorted(count_dict.items(), key=lambda x: x[1], reverse=True)
     
     # Determine top N for highlighting
     top_n = 3 if len(sorted_hashes) > 5 else len(sorted_hashes)
     top_n = 5 if len(sorted_hashes) > 10 else top_n
     
+    results = []
     for idx, (hash_val, count) in enumerate(sorted_hashes):
         if idx < top_n:
-            print(f"** {hash_val}: {count} users **")
+            result_line = f"** {hash_val}: {count} users **"
         else:
-            print(f"{hash_val}: {count} users")
+            result_line = f"{hash_val}: {count} users"
+        results.append(result_line)
+    
+    # Print results to screen
+    for line in results:
+        print(line)
+    
+    # Optionally write results to a file
+    if output_file:
+        with open(output_file, 'w') as f:
+            f.write("\n".join(results))
 
-# Main function
-def main(ntds_file_content, cracked_hashes_file_content):
+# Main function with argument parsing
+def main():
+    parser = argparse.ArgumentParser(description="Parse NTDS dump and cracked hashes.")
+    parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
+    parser.add_argument("-c", "--cracked", required=True, help="Cracked hashes file path")
+    parser.add_argument("-o", "--output", help="Output file path to save the results")
+
+    args = parser.parse_args()
+    
+    # Read files
+    with open(args.ntds, 'r') as ntds_file:
+        ntds_file_content = ntds_file.read()
+    
+    with open(args.cracked, 'r') as cracked_hashes_file:
+        cracked_hashes_file_content = cracked_hashes_file.read()
+    
     # Step 1: Parse cracked hashes
     hashes = parse_hash_file(cracked_hashes_file_content)
     
@@ -77,16 +103,9 @@ def main(ntds_file_content, cracked_hashes_file_content):
     # Step 3: Count matches in NTDS dump
     count_dict = count_matches(hashes, ntds_file_content)
     
-    # Step 4: Display results
-    display_results(count_dict)
+    # Step 4: Display results or save to file
+    display_results(count_dict, args.output)
 
-# Test input data with escaped backslashes
-ntds_file_content = """domain\\User1:sid:NT1:LM1:::
-domain\\User2:sid:NT2:LM1:::
-domain\\User3:sid:NT3:LM2:::"""
-
-cracked_hashes_file_content = """LM1
-LM2"""
-
-# Run the main function (example usage)
-main(ntds_file_content, cracked_hashes_file_content)
+# Run the main function if this script is executed
+if __name__ == "__main__":
+    main()
