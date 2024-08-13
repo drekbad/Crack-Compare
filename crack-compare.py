@@ -121,14 +121,19 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     max_digits = max(len(str(total_users)), len(str(possible_admin_count)), len(str(total_shared_hashes)), len(str(domain_admin_count)))
     padding = max_digits + 1  # +1 for a space between the colon and the value
 
-    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
+    def format_count_line(label, count):
+        color = Fore.YELLOW + Style.BRIGHT if count > 0 else Style.RESET_ALL
+        return f"{' ' * (colon_position - len(label))}{label}: {color}{str(count).rjust(padding)}{Style.RESET_ALL}"
+
+    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.YELLOW if total_users > 0 else ''}{Style.BRIGHT if total_users > 0 else ''}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
-    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.YELLOW if domain_admin_count > 0 else Style.RESET_ALL}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
-    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED if possible_admin_count > 0 else Style.RESET_ALL}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
-    shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes:'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
+    
+    domain_admins_line = format_count_line("Domain Admins Cracked", domain_admin_count)
+    admin_stats_line = format_count_line("Possible Admin Accounts", possible_admin_count)
+    shared_hashes_line = format_count_line("Total Shared Hashes", total_shared_hashes)
     
     if debug:
         print("Parsed Hashes:", hashes)
