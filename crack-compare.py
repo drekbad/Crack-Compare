@@ -2,6 +2,8 @@ import re
 from collections import defaultdict
 import argparse
 
+#debug
+
 # Function to parse cracked hashes directly from a simple list
 def parse_cracked_hashes_simple(file_content):
     hashes = []
@@ -17,6 +19,7 @@ def parse_cracked_hashes_simple(file_content):
             else:
                 # Assume it's a single hash, could be LM or NT
                 hashes.append((line, None))
+    print("Parsed Hashes:", hashes)
     return hashes
 
 # Function to identify the type of input hashes
@@ -39,16 +42,21 @@ def count_matches_debug(hashes, ntds_content):
     count_dict = defaultdict(int)
     ntds_lines = ntds_content.splitlines()
     
+    print("NTDS Lines:", ntds_lines)
+    
     for lm_hash, nt_hash in hashes:
         if lm_hash:
             for line in ntds_lines:
                 if lm_hash in line:
+                    print(f"Match Found: {lm_hash} in {line}")
                     count_dict[lm_hash] += 1
         if nt_hash:
             for line in ntds_lines:
                 if nt_hash in line:
+                    print(f"Match Found: {nt_hash} in {line}")
                     count_dict[nt_hash] += 1
     
+    print("Count Dict:", dict(count_dict))
     return count_dict
 
 # Function to display results and optionally write to a file
@@ -88,9 +96,11 @@ def main():
     # Read files
     with open(args.ntds, 'r') as ntds_file:
         ntds_file_content = ntds_file.read()
+        print("NTDS Content Loaded")
     
     with open(args.cracked, 'r') as cracked_hashes_file:
         cracked_hashes_file_content = cracked_hashes_file.read()
+        print("Cracked Hashes Content Loaded")
     
     # Step 1: Parse cracked hashes with the simpler parser
     hashes = parse_cracked_hashes_simple(cracked_hashes_file_content)
