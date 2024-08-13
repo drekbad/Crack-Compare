@@ -1,6 +1,6 @@
 import re
-from collections import defaultdict
 import argparse
+from collections import defaultdict
 from colorama import Fore, Style
 
 # Function to parse cracked hashes directly from a simple list
@@ -35,11 +35,16 @@ def count_matches(hashes, ntds_content):
     return count_dict
 
 # Function to check if a username contains admin-like patterns and highlight it in bold red
-def highlight_admin_users(username):
+def highlight_admin_users(username, domain_admins):
     patterns = [r".*\.adm.*", r".*-adm.*", r".*\.admin.*", r".*-admin.*", r"adm\..*", r"admin\..*"]
     for pattern in patterns:
         if re.match(pattern, username, re.IGNORECASE):
-            return f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
+            highlight = f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
+            if username in domain_admins:
+                highlight += f" {Fore.YELLOW}{Style.BRIGHT}(DOMAIN ADMIN){Style.RESET_ALL}"
+            return highlight
+    if username in domain_admins:
+        return f"{Fore.RED}{Style.BRIGHT}{username} {Fore.YELLOW}(DOMAIN ADMIN){Style.RESET_ALL}"
     return username
 
 # Function to extract the username from a given NTDS line
@@ -52,12 +57,13 @@ def extract_username(line):
         return line
 
 # Function to display results and optionally write to a file
-def display_results(count_dict, output_file=None, debug=False):
+def display_results(count_dict, domain_admins, output_file=None, debug=False):
     results = []
     detailed_results = []
     unique_users = set()
     possible_admin_count = 0
     total_shared_hashes = 0
+    domain_admin_count = 0
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
     # Collect data and prepare output
@@ -74,14 +80,16 @@ def display_results(count_dict, output_file=None, debug=False):
             detailed_results.append(f"{highlighted_hash}:")
             for user in users:
                 user_name = extract_username(user)
-                highlighted_user = highlight_admin_users(user_name)
+                highlighted_user = highlight_admin_users(user_name, domain_admins)
                 if highlighted_user != user_name:  # Check if it was highlighted
                     possible_admin_count += 1
+                if user_name in domain_admins:
+                    domain_admin_count += 1
                 detailed_results.append(f"    {highlighted_user}")
 
     # Calculate padding for right-justification
     total_users = len(unique_users)
-    max_digits = max(len(str(total_users)), len(str(possible_admin_count)), len(str(total_shared_hashes)))
+    max_digits = max(len(str(total_users)), len(str(possible_admin_count)), len(str(total_shared_hashes)), len(str(domain_admin_count)))
     padding = max_digits + 1  # +1 for a space between the colon and the value
 
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
@@ -89,6 +97,7 @@ def display_results(count_dict, output_file=None, debug=False):
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
+    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.RED if domain_admin_count > 0 else ''}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
     admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
     shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes:'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
     
@@ -108,6 +117,7 @@ def display_results(count_dict, output_file=None, debug=False):
         if debug:
             print(separator_line)
             print(total_users_line)
+            print(domain_admins_line)
             print(admin_stats_line)
             print(shared_hashes_line)
             print(separator_line + "\n")
@@ -122,6 +132,7 @@ def display_results(count_dict, output_file=None, debug=False):
             else:
                 print(separator_line)
                 print(total_users_line)
+                print(domain_admins_line)
                 print(admin_stats_line)
                 print(shared_hashes_line)
                 print(separator_line + "\n")
@@ -142,6 +153,7 @@ def display_results(count_dict, output_file=None, debug=False):
             if debug:
                 f.write(separator_line + "\n")
                 f.write(total_users_line + "\n")
+                f.write(domain_admins_line + "\n")
                 f.write(admin_stats_line + "\n")
                 f.write(shared_hashes_line + "\n")
                 f.write(separator_line + "\n\n")
@@ -153,6 +165,7 @@ def display_results(count_dict, output_file=None, debug=False):
                 f.write(str(dict(count_dict)) + "\n\n")
             f.write(separator_line + "\n")
             f.write(total_users_line + "\n")
+            f.write(domain_admins_line + "\n")
             f.write(admin_stats_line + "\n")
             f.write(shared_hashes_line + "\n")
             f.write(separator_line + "\n\n")
@@ -162,13 +175,23 @@ def display_results(count_dict, output_file=None, debug=False):
 
 # Main function with argument parsing
 def main():
-    parser = argparse.ArgumentParser(description="Parse NTDS dump and cracked hashes.")
+    parser = argparse.ArgumentParser(
+        description="Analyze NTDS dump and cracked hashes, highlighting possible admin accounts and domain admin accounts.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
     parser.add_argument("-c", "--cracked", required=True, help="Cracked hashes file path")
     parser.add_argument("-o", "--output", help="Output file path to save the results")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("-DA", "--domain-admins", help="File path for Domain Admins list")
 
     args = parser.parse_args()
+
+    # Load Domain Admins list if provided
+    domain_admins = set()
+    if args.domain_admins:
+        with open(args.domain_admins, 'r') as da_file:
+            domain_admins = set([line.strip() for line in da_file.readlines()])
     
     # Read files
     with open(args.ntds, 'r') as ntds_file:
@@ -184,7 +207,7 @@ def main():
     count_dict = count_matches(hashes, ntds_file_content)
     
     # Step 3: Display results or save to file
-    display_results(count_dict, args.output, args.debug)
+    display_results(count_dict, domain_admins, args.output, args.debug)
 
 # Run the main function if this script is executed
 if __name__ == "__main__":
