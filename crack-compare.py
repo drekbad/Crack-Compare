@@ -26,23 +26,20 @@ def count_matches(hashes, ntds_content):
     ntds_lines = ntds_content.splitlines()
     
     for lm_hash, nt_hash in hashes:
-        if lm_hash:
-            for line in ntds_lines:
-                if lm_hash in line:
-                    count_dict[lm_hash].append(line)
-        if nt_hash:
-            for line in ntds_lines:
-                if nt_hash in line:
-                    count_dict[nt_hash].append(line)
+        for line in ntds_lines:
+            if lm_hash and lm_hash in line:
+                count_dict[lm_hash].append(line)
+            if nt_hash and nt_hash in line:
+                count_dict[nt_hash].append(line)
     
     return count_dict
 
-# Function to check if a username contains admin-like patterns and highlight it in red
+# Function to check if a username contains admin-like patterns and highlight it in bold red
 def highlight_admin_users(username):
     patterns = [r".*\.adm.*", r".*-adm.*", r".*\.admin.*", r".*-admin.*", r"adm\..*", r"admin\..*"]
     for pattern in patterns:
         if re.match(pattern, username, re.IGNORECASE):
-            return f"{Fore.RED}{username}{Style.RESET_ALL}"
+            return f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
     return username
 
 # Function to display results and optionally write to a file
@@ -50,6 +47,7 @@ def display_results(count_dict, output_file=None, debug=False):
     results = []
     detailed_results = []
     unique_users = set()
+    possible_admin_count = 0
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
     # Collect data and prepare output
@@ -66,6 +64,8 @@ def display_results(count_dict, output_file=None, debug=False):
             for user in users:
                 user_name = user.split("\\")[1].split(":")[0] if "\\" in user and ":" in user else user
                 highlighted_user = highlight_admin_users(user_name)
+                if highlighted_user != user_name:  # Check if it was highlighted
+                    possible_admin_count += 1
                 detailed_results.append(f"    {highlighted_user}")
 
     # Display total unique users involved
@@ -73,17 +73,27 @@ def display_results(count_dict, output_file=None, debug=False):
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{total_users}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
+    # Admin account statistics
+    admin_stats_line = f"    Possible Admin Accounts: {Fore.RED}{Style.BRIGHT}{possible_admin_count}{Style.RESET_ALL}"
+    
     if debug:
         print("Parsed Hashes:", hashes)
         print("NTDS Lines:", ntds_lines)
         print("Count Dict:", dict(count_dict))
+        print("Debugging user parsing:")
+        for hash_val, users in sorted_hashes:
+            for user in users:
+                print(f"Raw user data: {user}")
+                user_name = user.split("\\")[1].split(":")[0] if "\\" in user and ":" in user else user
+                print(f"Parsed user name: {user_name}")
 
     # Regular output
     if results:
         if debug:
             print(separator_line)
             print(total_users_line)
-            print(separator_line + "\n")
+            print(separator_line)
+            print(admin_stats_line + "\n")
             for line in results:
                 print(line)
             print("\nDetailed List of Users per Hash:")
@@ -95,7 +105,8 @@ def display_results(count_dict, output_file=None, debug=False):
             else:
                 print(separator_line)
                 print(total_users_line)
-                print(separator_line + "\n")
+                print(separator_line)
+                print(admin_stats_line + "\n")
                 for line in results:
                     print(line)
                 print("\nDetailed List of Users per Hash:")
@@ -114,6 +125,7 @@ def display_results(count_dict, output_file=None, debug=False):
                 f.write(separator_line + "\n")
                 f.write(total_users_line + "\n")
                 f.write(separator_line + "\n\n")
+                f.write(admin_stats_line + "\n\n")
                 f.write("Parsed Hashes:\n")
                 f.write(str(hashes) + "\n")
                 f.write("NTDS Lines:\n")
@@ -123,6 +135,7 @@ def display_results(count_dict, output_file=None, debug=False):
             f.write(separator_line + "\n")
             f.write(total_users_line + "\n")
             f.write(separator_line + "\n\n")
+            f.write(admin_stats_line + "\n\n")
             f.write("\n".join(results) + "\n\n")
             f.write("Detailed List of Users per Hash:\n")
             f.write("\n".join(detailed_results))
