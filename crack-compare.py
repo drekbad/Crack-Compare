@@ -39,7 +39,7 @@ def highlight_admin_users(username):
     patterns = [r".*\.adm.*", r".*-adm.*", r".*\.admin.*", r".*-admin.*", r"adm\..*", r"admin\..*"]
     for pattern in patterns:
         if re.match(pattern, username, re.IGNORECASE):
-            return f"{Fore.RED}{username}{Style.RESET_ALL}"
+            return f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
     return username
 
 # Function to extract the username from a given NTDS line
@@ -57,6 +57,7 @@ def display_results(count_dict, output_file=None, debug=False):
     detailed_results = []
     unique_users = set()
     possible_admin_count = 0
+    total_shared_hashes = 0
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
     # Collect data and prepare output
@@ -64,6 +65,7 @@ def display_results(count_dict, output_file=None, debug=False):
         user_count = len(users)
         if user_count > 1:
             unique_users.update(users)
+            total_shared_hashes += 1
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
             highlighted_hash = hash_val[:-6] + f"{Fore.LIGHTYELLOW_EX}{hash_val[-6:]}{Style.RESET_ALL}"
             result_line = f"{prefix}{highlighted_hash}: {user_count} users"
@@ -82,9 +84,10 @@ def display_results(count_dict, output_file=None, debug=False):
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{total_users}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
-    # Align the admin stats with the colon in the total_users_line
+    # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = total_users_line.index(":")
     admin_stats_line = f"{' ' * colon_position}Possible Admin Accounts: {Fore.RED}{possible_admin_count}{Style.RESET_ALL}"
+    shared_hashes_line = f"{' ' * colon_position}Total Shared Hashes: {total_shared_hashes}"
     
     if debug:
         print("Parsed Hashes:", hashes)
@@ -102,8 +105,9 @@ def display_results(count_dict, output_file=None, debug=False):
         if debug:
             print(separator_line)
             print(total_users_line)
-            print(separator_line)
-            print(admin_stats_line + "\n")
+            print(admin_stats_line)
+            print(shared_hashes_line)
+            print(separator_line + "\n")
             for line in results:
                 print(line)
             print("\nDetailed List of Users per Hash:")
@@ -115,8 +119,9 @@ def display_results(count_dict, output_file=None, debug=False):
             else:
                 print(separator_line)
                 print(total_users_line)
-                print(separator_line)
-                print(admin_stats_line + "\n")
+                print(admin_stats_line)
+                print(shared_hashes_line)
+                print(separator_line + "\n")
                 for line in results:
                     print(line)
                 print("\nDetailed List of Users per Hash:")
@@ -134,8 +139,9 @@ def display_results(count_dict, output_file=None, debug=False):
             if debug:
                 f.write(separator_line + "\n")
                 f.write(total_users_line + "\n")
+                f.write(admin_stats_line + "\n")
+                f.write(shared_hashes_line + "\n")
                 f.write(separator_line + "\n\n")
-                f.write(admin_stats_line + "\n\n")
                 f.write("Parsed Hashes:\n")
                 f.write(str(hashes) + "\n")
                 f.write("NTDS Lines:\n")
@@ -144,8 +150,9 @@ def display_results(count_dict, output_file=None, debug=False):
                 f.write(str(dict(count_dict)) + "\n\n")
             f.write(separator_line + "\n")
             f.write(total_users_line + "\n")
+            f.write(admin_stats_line + "\n")
+            f.write(shared_hashes_line + "\n")
             f.write(separator_line + "\n\n")
-            f.write(admin_stats_line + "\n\n")
             f.write("\n".join(results) + "\n\n")
             f.write("Detailed List of Users per Hash:\n")
             f.write("\n".join(detailed_results))
