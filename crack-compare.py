@@ -12,8 +12,8 @@ def parse_cracked_hashes_simple(file_content):
         if line:
             parts = re.split(r'[:, ]+', line)
             if len(parts[0]) == 32 and re.match(r'^[0-9a-fA-F]+$', parts[0]):
-                lm_hash = parts[0]  # This is the LM hash
-                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None  # This is the NT hash
+                lm_hash = parts[0] 
+                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None
                 password = parts[2] if len(parts) > 2 else None
                 hashes.append((lm_hash, nt_hash, password))
             else:
