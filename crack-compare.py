@@ -127,7 +127,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     padding = max_digits + 1  # +1 for a space between the colon and the value
 
     def format_count_line(label, count, color):
-        return f"{' ' * (colon_position - len(label))}{label}: {color}{str(count).rjust(padding)}{Style.RESET_ALL}"
+        return f"{' ' * (colon_position - len(label) - 1)}{label}: {color}{str(count).rjust(padding)}{Style.RESET_ALL}"
 
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
