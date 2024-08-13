@@ -46,7 +46,7 @@ def display_results(count_dict, output_file=None, debug=False):
         if user_count > 1:
             prefix = "** " if user_count > 2 else ""
             result_line = f"{prefix}{hash_val}: {user_count} users"
-            user_list = ", ".join([user.split("\\")[1].split(":")[0] for user in users])
+            user_list = ", ".join([user.split("\\")[1].split(":")[0] for user in users if "\\" in user and ":" in user])
             results.append(result_line)
             results.append(f"    {user_list}")
     
