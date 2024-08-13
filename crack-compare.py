@@ -2,20 +2,21 @@ import re
 from collections import defaultdict
 import argparse
 
-# Function to parse and categorize the input file
-def parse_hash_file(file_content):
+# Function to parse cracked hashes directly from a simple list
+def parse_cracked_hashes_simple(file_content):
     hashes = []
     for line in file_content.splitlines():
-        if ":::" in line:
-            parts = line.split(":::")[0].split(":")
-            lm_hash = parts[3].strip() if len(parts) > 3 else None
-            nt_hash = parts[2].strip() if len(parts) > 2 else None
-            if lm_hash and nt_hash:
+        line = line.strip()
+        if line:
+            # If the line contains a colon, it could be NT:LM or LM:plaintext
+            if ':' in line:
+                parts = line.split(':')
+                lm_hash = parts[0].strip() if len(parts) > 0 else None
+                nt_hash = parts[1].strip() if len(parts) > 1 else None
                 hashes.append((lm_hash, nt_hash))
-            elif lm_hash:
-                hashes.append((lm_hash, None))
-            elif nt_hash:
-                hashes.append((None, nt_hash))
+            else:
+                # Assume it's a single hash, could be LM or NT
+                hashes.append((line, None))
     return hashes
 
 # Function to identify the type of input hashes
@@ -34,7 +35,7 @@ def identify_hash_type(hashes):
         return "unknown"
 
 # Function to find and count matches in NTDS dump
-def count_matches(hashes, ntds_content):
+def count_matches_debug(hashes, ntds_content):
     count_dict = defaultdict(int)
     ntds_lines = ntds_content.splitlines()
     
@@ -91,17 +92,11 @@ def main():
     with open(args.cracked, 'r') as cracked_hashes_file:
         cracked_hashes_file_content = cracked_hashes_file.read()
     
-    # Step 1: Parse cracked hashes
-    hashes = parse_hash_file(cracked_hashes_file_content)
-    
-    # Step 2: Identify the hash type
-    hash_type = identify_hash_type(hashes)
-    
-    if hash_type == "mixed":
-        print("Warning: Mixed hash types detected in input. Proceeding with caution.")
+    # Step 1: Parse cracked hashes with the simpler parser
+    hashes = parse_cracked_hashes_simple(cracked_hashes_file_content)
     
     # Step 3: Count matches in NTDS dump
-    count_dict = count_matches(hashes, ntds_file_content)
+    count_dict = count_matches_debug(hashes, ntds_file_content)
     
     # Step 4: Display results or save to file
     display_results(count_dict, args.output)
