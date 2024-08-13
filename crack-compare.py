@@ -3,19 +3,28 @@ import argparse
 from collections import defaultdict
 from colorama import Fore, Style
 
-# Function to parse cracked hashes directly from a simple list
+# Function to validate and parse cracked hashes
 def parse_cracked_hashes_simple(file_content):
     hashes = []
+    invalid_hashes = []
     for line in file_content.splitlines():
         line = line.strip()
         if line:
-            if ':' in line:
-                parts = line.split(':')
-                lm_hash = parts[0].strip() if len(parts) > 0 else None
-                nt_hash = parts[1].strip() if len(parts) > 1 else None
-                hashes.append((lm_hash, nt_hash))
+            parts = re.split(r'[:, ]+', line)
+            if len(parts[0]) == 32 and re.match(r'^[0-9a-fA-F]+$', parts[0]):
+                lm_hash = parts[0]
+                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None
+                password = parts[2] if len(parts) > 2 else None
+                hashes.append((lm_hash, nt_hash, password))
             else:
-                hashes.append((line, None))
+                invalid_hashes.append(line)
+    
+    if invalid_hashes:
+        print(f"{Fore.RED}Error: Detected {len(invalid_hashes)} invalid LM hashes.{Style.RESET_ALL}")
+        print(f"Example of invalid entry: {invalid_hashes[0]}")
+        print("Please review the input file and correct any errors.")
+        exit(1)
+    
     return hashes
 
 # Function to find and count matches in NTDS dump
@@ -23,7 +32,7 @@ def count_matches(hashes, ntds_content):
     count_dict = defaultdict(list)
     ntds_lines = ntds_content.splitlines()
     
-    for lm_hash, nt_hash in hashes:
+    for lm_hash, nt_hash, _ in hashes:
         for line in ntds_lines:
             if lm_hash and lm_hash in line:
                 count_dict[lm_hash].append(line)
@@ -55,7 +64,7 @@ def extract_username(line):
         return line
 
 # Function to display results and optionally write to a file
-def display_results(count_dict, domain_admins, output_file=None, debug=False):
+def display_results(count_dict, domain_admins, hashes, output_file=None, debug=False):
     results = []
     detailed_results = []
     admin_only_results = []
@@ -66,7 +75,7 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
     # Collect data and prepare output
-    for hash_val, users in sorted_hashes:
+    for lm_hash, users in sorted_hashes:
         user_count = len(users)
         for user in users:
             user_name = extract_username(user)
@@ -76,15 +85,16 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
                     possible_admin_count += 1
                 if user_name in domain_admins:
                     domain_admin_count += 1
+                password = next((pwd for h, n, pwd in hashes if h == lm_hash), None)
                 if user_count == 1:
-                    admin_only_results.append(f"{highlighted_user}")
+                    admin_only_results.append(f"{highlighted_user} (LM Hash: {lm_hash})" + (f" Cleartext: {password}" if password else ""))
                 break  # No need to check other users for this hash
                 
         if user_count > 1:
             unique_users.update(users)
             total_shared_hashes += 1
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
-            highlighted_hash = hash_val[:-6] + f"{Fore.LIGHTYELLOW_EX}{hash_val[-6:]}{Style.RESET_ALL}"
+            highlighted_hash = lm_hash[:-6] + f"{Fore.LIGHTYELLOW_EX}{lm_hash[-6:]}{Style.RESET_ALL}"
             result_line = f"{prefix}{highlighted_hash}: {user_count} users"
             results.append(result_line)
             
@@ -92,7 +102,8 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
             for user in users:
                 user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name, domain_admins)
-                detailed_results.append(f"    {highlighted_user}")
+                password = next((pwd for h, n, pwd in hashes if h == lm_hash), None)
+                detailed_results.append(f"    {highlighted_user}" + (f" Cleartext: {password}" if password else ""))
 
     # Calculate padding for right-justification
     total_users = len(unique_users)
@@ -203,14 +214,13 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
 # Main function with argument parsing
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze NTDS dump and cracked hashes, highlighting reuse or defaults, possible admin accounts, and cracked domain admin accounts.",
+        description="Analyze NTDS dump and cracked hashes, highlighting possible admin accounts and domain admin accounts.",
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
     parser.add_argument("-c", "--cracked", required=True, help="Cracked hashes file path")
-    parser.add_argument("-o", "--output", help="Output file path to save the results")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("-DA", "--domain-admins", help="File path for Domain Admins list")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
 
@@ -227,14 +237,14 @@ def main():
     with open(args.cracked, 'r') as cracked_hashes_file:
         cracked_hashes_file_content = cracked_hashes_file.read()
     
-    # Step 1: Parse cracked hashes with the simpler parser
+    # Step 1: Parse cracked hashes with validation
     hashes = parse_cracked_hashes_simple(cracked_hashes_file_content)
     
     # Step 2: Count matches in NTDS dump
     count_dict = count_matches(hashes, ntds_file_content)
     
     # Step 3: Display results or save to file
-    display_results(count_dict, domain_admins, args.output, args.debug)
+    display_results(count_dict, domain_admins, hashes, args.output, args.debug)
 
 # Run the main function if this script is executed
 if __name__ == "__main__":
