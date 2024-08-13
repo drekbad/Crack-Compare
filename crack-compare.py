@@ -88,7 +88,11 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
         
         # Admin or Domain Admin Section
         admin_users = [highlight_admin_users(extract_username(user), domain_admins) for user in users]
-        if any(user != extract_username(user) for user in admin_users):
+        is_admin = any(user != extract_username(user) for user in admin_users)
+        if is_admin:
+            possible_admin_count += 1
+            if any(extract_username(user) in domain_admins for user in users):
+                domain_admin_count += 1
             if user_count > 1:
                 admin_only_results.append(f"    {formatted_hash} - {user_count} users")
                 admin_only_results.append(f"    {', '.join(admin_users)}")
@@ -134,7 +138,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
                 print(f"Parsed user name: {user_name}")
 
     # Regular output
-    if results:
+    if results or admin_only_results:
         if debug:
             print(separator_line)
             print(total_users_line)
@@ -179,7 +183,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             print("No matches found.")
 
     # Optionally write results to a file
-    if output_file and results:
+    if output_file and (results or admin_only_results):
         with open(output_file, 'w') as f:
             if debug:
                 f.write(separator_line + "\n")
