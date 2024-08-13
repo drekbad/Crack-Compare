@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
 import argparse
+from colorama import Fore, Style
 
 # Function to parse cracked hashes directly from a simple list
 def parse_cracked_hashes_simple(file_content):
@@ -39,33 +40,52 @@ def count_matches(hashes, ntds_content):
 # Function to display results and optionally write to a file
 def display_results(count_dict, output_file=None, debug=False):
     results = []
+    detailed_results = []
+    unique_users = set()
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
+    # Collect data and prepare output
     for hash_val, users in sorted_hashes:
         user_count = len(users)
         if user_count > 1:
-            prefix = "** " if user_count > 2 else ""
-            result_line = f"{prefix}{hash_val}: {user_count} users"
-            user_list = ", ".join([user.split("\\")[1].split(":")[0] for user in users if "\\" in user and ":" in user])
+            unique_users.update(users)
+            prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else ""
+            highlighted_hash = hash_val[:-6] + f"{Fore.LIGHTYELLOW_EX}{hash_val[-6:]}{Style.RESET_ALL}"
+            result_line = f"{prefix}{highlighted_hash}: {user_count} users"
             results.append(result_line)
-            results.append(f"    {user_list}")
+            
+            detailed_results.append(f"{highlighted_hash}:")
+            for user in users:
+                user_name = user.split("\\")[1].split(":")[0] if "\\" in user and ":" in user else user
+                detailed_results.append(f"    {user_name}")
+
+    # Display total unique users involved
+    total_users = len(unique_users)
+    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{total_users}{Style.RESET_ALL}"
     
-    # Debug output
     if debug:
         print("Parsed Hashes:", hashes)
         print("NTDS Lines:", ntds_lines)
         print("Count Dict:", dict(count_dict))
-    
+
     # Regular output
     if results:
         if debug:
+            print(total_users_line)
             for line in results:
+                print(line)
+            print("\nDetailed List of Users per Hash:")
+            for line in detailed_results:
                 print(line)
         else:
             if output_file:
-                print(f"{len(results)} hashes found for more than one user")
+                print(f"{total_users} users found across multiple shared hashes")
             else:
+                print(total_users_line)
                 for line in results:
+                    print(line)
+                print("\nDetailed List of Users per Hash:")
+                for line in detailed_results:
                     print(line)
     else:
         if output_file:
@@ -83,7 +103,10 @@ def display_results(count_dict, output_file=None, debug=False):
                 f.write("\n".join(ntds_lines) + "\n")
                 f.write("Count Dict:\n")
                 f.write(str(dict(count_dict)) + "\n\n")
-            f.write("\n".join(results))
+            f.write(total_users_line + "\n\n")
+            f.write("\n".join(results) + "\n\n")
+            f.write("Detailed List of Users per Hash:\n")
+            f.write("\n".join(detailed_results))
 
 # Main function with argument parsing
 def main():
