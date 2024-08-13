@@ -80,21 +80,27 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     for nt_hash, users in sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True):
         user_count = len(users)
         password = next((pwd for h, pwd in hashes if h == nt_hash), None)
-        formatted_password = f"{Fore.LIGHTBLUE_EX}{password}{Style.RESET_ALL}" if password else ""
+        formatted_password = f"{Fore.LIGHTGREEN_EX}{password}{Style.RESET_ALL}" if password else ""
         formatted_hash = f"{nt_hash}:{formatted_password}" if password else nt_hash
         
         if password and len(password) < max_password_length:
             formatted_password += " " * (max_password_length - len(password))
         
-        line_prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
-        result_line = f"{line_prefix}{formatted_hash} - {str(user_count).rjust(2)} users"
+        # Admin or Domain Admin Section
+        admin_users = [highlight_admin_users(extract_username(user), domain_admins) for user in users]
+        if any(user != extract_username(user) for user in admin_users):
+            if user_count > 1:
+                admin_only_results.append(f"    {formatted_hash} - {user_count} users")
+                admin_only_results.append(f"    {', '.join(admin_users)}")
+            else:
+                admin_only_results.append(f"    {formatted_hash} {admin_users[0]}")
         
-        if any(extract_username(user) in domain_admins or highlight_admin_users(extract_username(user), domain_admins) != extract_username(user) for user in users):
-            admin_only_results.append(result_line)
-        
+        # Regular Results Section
         if user_count > 1:
             unique_users.update(users)
             total_shared_hashes += 1
+            line_prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
+            result_line = f"{line_prefix}{formatted_hash} - {str(user_count).rjust(2)} users"
             results.append(result_line)
             detailed_results.append(formatted_hash)
             for user in users:
