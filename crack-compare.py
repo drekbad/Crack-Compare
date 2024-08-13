@@ -2,7 +2,7 @@ import re
 import argparse
 from collections import defaultdict
 from colorama import Fore, Style
-#test
+
 # Function to validate and parse cracked hashes
 def parse_cracked_hashes_simple(file_content):
     hashes = []
@@ -12,15 +12,14 @@ def parse_cracked_hashes_simple(file_content):
         if line:
             parts = re.split(r'[:, ]+', line)
             if len(parts[0]) == 32 and re.match(r'^[0-9a-fA-F]+$', parts[0]):
-                lm_hash = parts[0]  # This is the LM hash
-                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None  # This is the NT hash
-                password = parts[2] if len(parts) > 2 else None
-                hashes.append((lm_hash, nt_hash, password))
+                nt_hash = parts[0] 
+                password = parts[1] if len(parts) > 1 else None
+                hashes.append((nt_hash, password))
             else:
                 invalid_hashes.append(line)
     
     if invalid_hashes:
-        print(f"{Fore.RED}Error: Detected {len(invalid_hashes)} invalid LM hashes.{Style.RESET_ALL}")
+        print(f"{Fore.RED}Error: Detected {len(invalid_hashes)} invalid NT hashes.{Style.RESET_ALL}")
         print(f"Example of invalid entry: {invalid_hashes[0]}")
         print("Please review the input file and correct any errors.")
         exit(1)
@@ -32,10 +31,8 @@ def count_matches(hashes, ntds_content):
     count_dict = defaultdict(list)
     ntds_lines = ntds_content.splitlines()
     
-    for lm_hash, nt_hash, _ in hashes:
+    for nt_hash, _ in hashes:
         for line in ntds_lines:
-            if lm_hash and lm_hash in line:
-                count_dict[lm_hash].append(line)
             if nt_hash and nt_hash in line:
                 count_dict[nt_hash].append(line)
     
@@ -75,31 +72,30 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     sorted_hashes = sorted(count_dict.items(), key=lambda x: len(x[1]), reverse=True)
     
     # Collect data and prepare output
-    for lm_hash, users in sorted_hashes:
+    for nt_hash, users in sorted_hashes:
         user_count = len(users)
+        password = next((pwd for h, pwd in hashes if h == nt_hash), None)
+        formatted_hash = f"{nt_hash}:{password}" if password else nt_hash
+        
         for user in users:
             user_name = extract_username(user)
-            if user_name in domain_admins or re.search(r".*adm.*|.*admin.*", user_name, re.IGNORECASE):
-                highlighted_user = highlight_admin_users(user_name, domain_admins)
-                if highlighted_user != user_name:
-                    possible_admin_count += 1
-                if user_name in domain_admins:
-                    domain_admin_count += 1
-                password = next((pwd for h, n, pwd in hashes if n == lm_hash), None)
-                if user_count == 1:
-                    admin_only_results.append(f"{highlighted_user} (NT Hash: {lm_hash})" + (f":{password}" if password else ""))
+            highlighted_user = highlight_admin_users(user_name, domain_admins)
+            if highlighted_user != user_name:
+                possible_admin_count += 1
+            if user_name in domain_admins:
+                domain_admin_count += 1
+            if user_count == 1:
+                admin_only_results.append(f"{formatted_hash} - {highlighted_user}")
                 break  # No need to check other users for this hash
-                
+
         if user_count > 1:
             unique_users.update(users)
             total_shared_hashes += 1
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
-            highlighted_hash = lm_hash[:-6] + f"{Fore.LIGHTYELLOW_EX}{lm_hash[-6:]}{Style.RESET_ALL}"
-            password = next((pwd for h, n, pwd in hashes if n == lm_hash), None)
-            result_line = f"{prefix}{highlighted_hash}:{password if password else ''} {user_count} users"
+            result_line = f"{prefix}{formatted_hash}: {user_count} users"
             results.append(result_line)
             
-            detailed_results.append(f"{highlighted_hash}:{password if password else ''}")
+            detailed_results.append(formatted_hash)
             for user in users:
                 user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name, domain_admins)
