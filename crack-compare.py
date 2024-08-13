@@ -12,8 +12,8 @@ def parse_cracked_hashes_simple(file_content):
         if line:
             parts = re.split(r'[:, ]+', line)
             if len(parts[0]) == 32 and re.match(r'^[0-9a-fA-F]+$', parts[0]):
-                lm_hash = parts[0] 
-                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None
+                lm_hash = parts[0]  # This is the LM hash
+                nt_hash = parts[1] if len(parts) > 1 and len(parts[1]) == 32 else None  # This is the NT hash
                 password = parts[2] if len(parts) > 2 else None
                 hashes.append((lm_hash, nt_hash, password))
             else:
@@ -220,6 +220,7 @@ def main():
     parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
     parser.add_argument("-c", "--cracked", required=True, help="Cracked hashes file path")
     parser.add_argument("-DA", "--domain-admins", help="File path for Domain Admins list")
+    parser.add_argument("-o", "--output", help="Output file path to save the results")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
