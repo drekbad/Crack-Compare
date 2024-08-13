@@ -79,15 +79,18 @@ def display_results(count_dict, output_file=None, debug=False):
                     possible_admin_count += 1
                 detailed_results.append(f"    {highlighted_user}")
 
-    # Display total unique users involved
+    # Calculate padding for right-justification
     total_users = len(unique_users)
-    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{total_users}{Style.RESET_ALL}"
+    max_digits = max(len(str(total_users)), len(str(possible_admin_count)), len(str(total_shared_hashes)))
+    padding = max_digits + 1  # +1 for a space between the colon and the value
+
+    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
-    colon_position = total_users_line.index(":")
-    admin_stats_line = f"{' ' * colon_position}Possible Admin Accounts: {Fore.RED}{possible_admin_count}{Style.RESET_ALL}"
-    shared_hashes_line = f"{' ' * colon_position}Total Shared Hashes: {total_shared_hashes}"
+    colon_position = total_users_line.index(":") + 1
+    admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
+    shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
     
     if debug:
         print("Parsed Hashes:", hashes)
