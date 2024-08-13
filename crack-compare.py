@@ -9,14 +9,12 @@ def parse_cracked_hashes_simple(file_content):
     for line in file_content.splitlines():
         line = line.strip()
         if line:
-            # If the line contains a colon, it could be NT:LM or LM:plaintext
             if ':' in line:
                 parts = line.split(':')
                 lm_hash = parts[0].strip() if len(parts) > 0 else None
                 nt_hash = parts[1].strip() if len(parts) > 1 else None
                 hashes.append((lm_hash, nt_hash))
             else:
-                # Assume it's a single hash, could be LM or NT
                 hashes.append((line, None))
     return hashes
 
@@ -60,6 +58,7 @@ def extract_username(line):
 def display_results(count_dict, domain_admins, output_file=None, debug=False):
     results = []
     detailed_results = []
+    admin_only_results = []
     unique_users = set()
     possible_admin_count = 0
     total_shared_hashes = 0
@@ -69,6 +68,18 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
     # Collect data and prepare output
     for hash_val, users in sorted_hashes:
         user_count = len(users)
+        for user in users:
+            user_name = extract_username(user)
+            if user_name in domain_admins or re.search(r".*adm.*|.*admin.*", user_name, re.IGNORECASE):
+                highlighted_user = highlight_admin_users(user_name, domain_admins)
+                if highlighted_user != user_name:
+                    possible_admin_count += 1
+                if user_name in domain_admins:
+                    domain_admin_count += 1
+                if user_count == 1:
+                    admin_only_results.append(f"{highlighted_user}")
+                break  # No need to check other users for this hash
+                
         if user_count > 1:
             unique_users.update(users)
             total_shared_hashes += 1
@@ -81,10 +92,6 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
             for user in users:
                 user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name, domain_admins)
-                if highlighted_user != user_name:  # Check if it was highlighted
-                    possible_admin_count += 1
-                if user_name in domain_admins:
-                    domain_admin_count += 1
                 detailed_results.append(f"    {highlighted_user}")
 
     # Calculate padding for right-justification
@@ -97,7 +104,7 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
-    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.RED if domain_admin_count > 0 else ''}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
+    domain_admins_line = f"{' ' * (colon_position - len('Domain Admins Cracked:'))}Domain Admins Cracked: {Fore.YELLOW if domain_admin_count > 0 else Fore.RED}{Style.BRIGHT if domain_admin_count > 0 else ''}{str(domain_admin_count).rjust(padding)}{Style.RESET_ALL}"
     admin_stats_line = f"{' ' * (colon_position - len('Possible Admin Accounts:'))}Possible Admin Accounts: {Fore.RED}{str(possible_admin_count).rjust(padding)}{Style.RESET_ALL}"
     shared_hashes_line = f"{' ' * (colon_position - len('Total Shared Hashes:'))}Total Shared Hashes: {str(total_shared_hashes).rjust(padding)}"
     
@@ -121,6 +128,11 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
             print(admin_stats_line)
             print(shared_hashes_line)
             print(separator_line + "\n")
+            if admin_only_results:
+                print("Admin or Domain Admin Cracked Hashes (Single User):")
+                for line in admin_only_results:
+                    print(line)
+                print()
             for line in results:
                 print(line)
             print("\nDetailed List of Users per Hash:")
@@ -136,6 +148,11 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
                 print(admin_stats_line)
                 print(shared_hashes_line)
                 print(separator_line + "\n")
+                if admin_only_results:
+                    print("Admin or Domain Admin Cracked Hashes (Single User):")
+                    for line in admin_only_results:
+                        print(line)
+                    print()
                 for line in results:
                     print(line)
                 print("\nDetailed List of Users per Hash:")
@@ -157,6 +174,11 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
                 f.write(admin_stats_line + "\n")
                 f.write(shared_hashes_line + "\n")
                 f.write(separator_line + "\n\n")
+                if admin_only_results:
+                    f.write("Admin or Domain Admin Cracked Hashes (Single User):\n")
+                    for line in admin_only_results:
+                        f.write(line + "\n")
+                    f.write("\n")
                 f.write("Parsed Hashes:\n")
                 f.write(str(hashes) + "\n")
                 f.write("NTDS Lines:\n")
@@ -169,6 +191,11 @@ def display_results(count_dict, domain_admins, output_file=None, debug=False):
             f.write(admin_stats_line + "\n")
             f.write(shared_hashes_line + "\n")
             f.write(separator_line + "\n\n")
+            if admin_only_results:
+                f.write("Admin or Domain Admin Cracked Hashes (Single User):\n")
+                for line in admin_only_results:
+                    f.write(line + "\n")
+                f.write("\n")
             f.write("\n".join(results) + "\n\n")
             f.write("Detailed List of Users per Hash:\n")
             f.write("\n".join(detailed_results))
