@@ -85,9 +85,9 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
                     possible_admin_count += 1
                 if user_name in domain_admins:
                     domain_admin_count += 1
-                password = next((pwd for h, n, pwd in hashes if h == lm_hash), None)
+                password = next((pwd for h, n, pwd in hashes if n == lm_hash), None)
                 if user_count == 1:
-                    admin_only_results.append(f"{highlighted_user} (LM Hash: {lm_hash})" + (f" Cleartext: {password}" if password else ""))
+                    admin_only_results.append(f"{highlighted_user} (NT Hash: {lm_hash})" + (f":{password}" if password else ""))
                 break  # No need to check other users for this hash
                 
         if user_count > 1:
@@ -95,15 +95,15 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             total_shared_hashes += 1
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
             highlighted_hash = lm_hash[:-6] + f"{Fore.LIGHTYELLOW_EX}{lm_hash[-6:]}{Style.RESET_ALL}"
-            result_line = f"{prefix}{highlighted_hash}: {user_count} users"
+            password = next((pwd for h, n, pwd in hashes if n == lm_hash), None)
+            result_line = f"{prefix}{highlighted_hash}:{password if password else ''} {user_count} users"
             results.append(result_line)
             
-            detailed_results.append(f"{highlighted_hash}:")
+            detailed_results.append(f"{highlighted_hash}:{password if password else ''}")
             for user in users:
                 user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name, domain_admins)
-                password = next((pwd for h, n, pwd in hashes if h == lm_hash), None)
-                detailed_results.append(f"    {highlighted_user}" + (f" Cleartext: {password}" if password else ""))
+                detailed_results.append(f"    {highlighted_user}")
 
     # Calculate padding for right-justification
     total_users = len(unique_users)
