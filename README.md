@@ -26,4 +26,4 @@ python3 crack-compare.py -n <NTDS dump file> -c <Cracked NTLMs file> [-DA <list 
 
 ### ⚓ Considerations
 - Hashes displayed in the output primarily indicate where more than one user was associated with a given hash, except where related to a possible admin or confiremd DA
-- NTDS file must be in the format:  `domain\Username:SID:NT:LM:::` where 'domain' is optional. This may be expanded for flexibility in the future as needed.
+- NTDS file must be in the format:  `domain\Username:RID:LM:NT:::` where 'domain' is optional. This may be expanded for flexibility in the future as needed.
