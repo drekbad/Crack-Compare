@@ -2,7 +2,7 @@ import re
 import argparse
 from collections import defaultdict
 from colorama import Fore, Style
-
+#test
 # Function to validate and parse cracked hashes
 def parse_cracked_hashes_simple(file_content):
     hashes = []
