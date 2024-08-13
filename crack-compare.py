@@ -85,6 +85,8 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             formatted_password += " " * (max_password_length - len(password))
 
         admin_users = []
+        da_users = []
+        other_users_count = 0
         is_admin = False
 
         for user in users:
@@ -92,17 +94,20 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             highlighted_user = highlight_admin_users(user_name, domain_admins)
             if highlighted_user != user_name:
                 is_admin = True
-            if user_name in domain_admins:
-                domain_admin_count += 1
-            admin_users.append(highlighted_user)
+                if user_name in domain_admins:
+                    da_users.append(highlighted_user)
+                else:
+                    admin_users.append(highlighted_user)
+            else:
+                other_users_count += 1
 
         if is_admin:
             possible_admin_count += 1
-            if user_count > 1:
-                admin_only_results.append(f"    {formatted_hash} - {user_count} users")
-                admin_only_results.append(f"    {', '.join(admin_users)}")
-            else:
-                admin_only_results.append(f"    {formatted_hash} {admin_users[0]}")
+            if da_users:
+                domain_admin_count += len(da_users)
+            admin_only_results.append(f"    {formatted_hash} - {len(da_users)} DA users, {len(admin_users)} admin users, {other_users_count} other users")
+            for user in da_users + admin_users:
+                admin_only_results.append(f"    {user}")
 
         if user_count > 1:
             unique_users.update(users)
@@ -121,19 +126,18 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
     max_digits = max(len(str(total_users)), len(str(possible_admin_count)), len(str(total_shared_hashes)), len(str(domain_admin_count)))
     padding = max_digits + 1  # +1 for a space between the colon and the value
 
-    def format_count_line(label, count):
-        color = Fore.YELLOW + Style.BRIGHT if count > 0 else Style.RESET_ALL
+    def format_count_line(label, count, color):
         return f"{' ' * (colon_position - len(label))}{label}: {color}{str(count).rjust(padding)}{Style.RESET_ALL}"
 
-    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.YELLOW if total_users > 0 else ''}{Style.BRIGHT if total_users > 0 else ''}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
+    total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
     
-    domain_admins_line = format_count_line("Domain Admins Cracked", domain_admin_count)
-    admin_stats_line = format_count_line("Possible Admin Accounts", possible_admin_count)
-    shared_hashes_line = format_count_line("Total Shared Hashes", total_shared_hashes)
+    domain_admins_line = format_count_line("Domain Admins Cracked", domain_admin_count, Fore.YELLOW + Style.BRIGHT)
+    admin_stats_line = format_count_line("Possible Admin Accounts", possible_admin_count, Fore.RED + Style.BRIGHT)
+    shared_hashes_line = format_count_line("Total Shared Hashes", total_shared_hashes, Style.RESET_ALL)
     
     if debug:
         print("Parsed Hashes:", hashes)
