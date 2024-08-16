@@ -39,8 +39,9 @@ def count_matches(hashes, ntds_content):
     return count_dict
 
 # Function to check if a username contains admin-like patterns and highlight it in bold red
-def highlight_admin_users(username, domain_admins):
+def highlight_admin_users(username, domain_admins, custom_patterns=[]):
     patterns = [r".*\.adm.*", r".*-adm.*", r".*\.admin.*", r".*-admin.*", r"adm\..*", r"admin\..*"]
+    patterns.extend(custom_patterns)  # Add custom patterns if provided
     for pattern in patterns:
         if re.match(pattern, username, re.IGNORECASE):
             highlight = f"{Fore.RED}{Style.BRIGHT}{username}{Style.RESET_ALL}"
@@ -61,10 +62,11 @@ def extract_username(line):
         return line
 
 # Function to display results and optionally write to a file
-def display_results(count_dict, domain_admins, hashes, output_file=None, debug=False):
+def display_results(count_dict, domain_admins, hashes, custom_patterns, output_file=None, debug=False, include_single_user=False):
     results = []
     detailed_results = []
     admin_only_results = []
+    single_user_results = []
     unique_users = set()
     possible_admin_count = 0
     total_shared_hashes = 0
@@ -91,7 +93,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
 
         for user in users:
             user_name = extract_username(user)
-            highlighted_user = highlight_admin_users(user_name, domain_admins)
+            highlighted_user = highlight_admin_users(user_name, domain_admins, custom_patterns)
             if highlighted_user != user_name:
                 is_admin = True
                 if user_name in domain_admins:
@@ -109,16 +111,19 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             for user in da_users + admin_users:
                 admin_only_results.append(f"    {user}")
 
+        if include_single_user and user_count == 1:
+            single_user_results.append(f"{nt_hash}:{users[0].split(':')[0]}:{formatted_password}")
+
         if user_count > 1:
             unique_users.update(users)
             total_shared_hashes += 1
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
             result_line = f"{prefix}{formatted_hash} - {str(user_count).rjust(2)} users"
             results.append(result_line)
-            detailed_results.append(formatted_hash)
+            detailed_results.append(f"{formatted_hash} - {user_count} users")
             for user in users:
                 user_name = extract_username(user)
-                highlighted_user = highlight_admin_users(user_name, domain_admins)
+                highlighted_user = highlight_admin_users(user_name, domain_admins, custom_patterns)
                 detailed_results.append(f"    {highlighted_user}")
 
     # Calculate padding for right-justification
@@ -131,6 +136,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
 
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
+    detail_separator_line = "=" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
@@ -151,7 +157,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
                 print(f"Parsed user name: {user_name}")
 
     # Regular output
-    if results or admin_only_results:
+    if results or admin_only_results or single_user_results:
         print(separator_line)
         print(total_users_line)
         print(domain_admins_line)
@@ -168,10 +174,18 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
         for line in results:
             print(line)
         
-        print("\nDetailed List of Users per Hash (only hashes with multiple users):")
+        print(detail_separator_line + "\n")
+        print("Detailed List of Users per Hash (only hashes with multiple users):")
         for line in detailed_results:
             print(line)
-    
+        
+        if single_user_results:
+            print(detail_separator_line + "\n")
+            print("Single-User Cracked Hashes:")
+            for line in single_user_results:
+                print(line)
+            print()
+
     else:
         if output_file:
             print("No matches found. No output file will be created.")
@@ -179,7 +193,7 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
             print("No matches found.")
 
     # Optionally write results to a file
-    if output_file and (results or admin_only_results):
+    if output_file and (results or admin_only_results or single_user_results):
         with open(output_file, 'w') as f:
             f.write(separator_line + "\n")
             f.write(total_users_line + "\n")
@@ -195,8 +209,16 @@ def display_results(count_dict, domain_admins, hashes, output_file=None, debug=F
                 f.write("\n")
 
             f.write("\n".join(results) + "\n\n")
+            f.write(detail_separator_line + "\n")
             f.write("Detailed List of Users per Hash (only hashes with multiple users):\n")
             f.write("\n".join(detailed_results))
+
+            if single_user_results:
+                f.write("\n" + detail_separator_line + "\n")
+                f.write("Single-User Cracked Hashes:\n")
+                for line in single_user_results:
+                    f.write(line + "\n")
+                f.write("\n")
 
 # Main function with argument parsing
 def main():
@@ -207,6 +229,8 @@ def main():
     parser.add_argument("-n", "--ntds", required=True, help="NTDS dump file path")
     parser.add_argument("-c", "--cracked", required=True, help="Cracked hashes file path")
     parser.add_argument("-DA", "--domain-admins", help="File path for Domain Admins list")
+    parser.add_argument("--custom-pattern", action="append", help="Custom admin match patterns (e.g., 'a\\.<user>' or '<user>\\.a')")
+    parser.add_argument("--single-user", action="store_true", help="Include single-user cracked hashes in the output")
     parser.add_argument("-o", "--output", help="Output file path to save the results")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
@@ -232,7 +256,7 @@ def main():
     count_dict = count_matches(hashes, ntds_file_content)
     
     # Step 3: Display results or save to file
-    display_results(count_dict, domain_admins, hashes, args.output, args.debug)
+    display_results(count_dict, domain_admins, hashes, args.custom_pattern or [], args.output, args.debug, args.single_user)
 
 # Run the main function if this script is executed
 if __name__ == "__main__":
