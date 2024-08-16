@@ -120,7 +120,7 @@ def display_results(count_dict, domain_admins, hashes, custom_patterns, output_f
             prefix = f"{Fore.LIGHTYELLOW_EX}**{Style.RESET_ALL} " if user_count > 2 else "   "
             result_line = f"{prefix}{formatted_hash} - {str(user_count).rjust(2)} users"
             results.append(result_line)
-            detailed_results.append(formatted_hash)
+            detailed_results.append(f"{formatted_hash} - {user_count} users")
             for user in users:
                 user_name = extract_username(user)
                 highlighted_user = highlight_admin_users(user_name, domain_admins, custom_patterns)
@@ -136,6 +136,7 @@ def display_results(count_dict, domain_admins, hashes, custom_patterns, output_f
 
     total_users_line = f"Total Unique Users Across Shared Hashes: {Fore.GREEN}{str(total_users).rjust(padding)}{Style.RESET_ALL}"
     separator_line = "-" * len(total_users_line)
+    detail_separator_line = "=" * len(total_users_line)
     
     # Align the admin stats and total shared hashes with the colon in the total_users_line
     colon_position = len("Total Unique Users Across Shared Hashes:")  # Find the position of the colon
@@ -170,19 +171,22 @@ def display_results(count_dict, domain_admins, hashes, custom_patterns, output_f
                 print(line)
             print()
 
+        for line in results:
+            print(line)
+        
+        print(detail_separator_line + "\n")
+        print("Detailed List of Users per Hash (only hashes with multiple users):")
+        for line in detailed_results:
+            print(line)
+        
         if single_user_results:
-            print("Single-User Cracked Hashes:")
+            single_user_count = len(single_user_results)
+            print(detail_separator_line + "\n")
+            print(f"Single-User Cracked Hashes:     ({single_user_count})")
             for line in single_user_results:
                 print(line)
             print()
 
-        for line in results:
-            print(line)
-        
-        print("\nDetailed List of Users per Hash (only hashes with multiple users):")
-        for line in detailed_results:
-            print(line)
-    
     else:
         if output_file:
             print("No matches found. No output file will be created.")
@@ -205,15 +209,18 @@ def display_results(count_dict, domain_admins, hashes, custom_patterns, output_f
                     f.write(line + "\n")
                 f.write("\n")
 
+            f.write("\n".join(results) + "\n\n")
+            f.write(detail_separator_line + "\n")
+            f.write("Detailed List of Users per Hash (only hashes with multiple users):\n")
+            f.write("\n".join(detailed_results))
+
             if single_user_results:
-                f.write("Single-User Cracked Hashes:\n")
+                single_user_count = len(single_user_results)
+                f.write("\n" + detail_separator_line + "\n")
+                f.write(f"Single-User Cracked Hashes:     ({single_user_count})\n")
                 for line in single_user_results:
                     f.write(line + "\n")
                 f.write("\n")
-
-            f.write("\n".join(results) + "\n\n")
-            f.write("Detailed List of Users per Hash (only hashes with multiple users):\n")
-            f.write("\n".join(detailed_results))
 
 # Main function with argument parsing
 def main():
